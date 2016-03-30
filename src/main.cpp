@@ -262,7 +262,7 @@ int main(int argc, char **argv) {
     bool printHelp = 1;
     std::string helpString = "[d] save Depth, [P] Save Point Cloud, [m] change format PC, [n] change format Depth, [q] quit";
 
-    int depth_clamp = 5000;
+    int depth_clamp = 15000;
     zed_ptr->setDepthClampValue(depth_clamp);
 
     int mode_PC = 0;
@@ -290,60 +290,61 @@ int main(int argc, char **argv) {
 
     while (!quit_ && (zed_ptr->getSVOPosition() <= nbFrames)) {
 
-        zed_ptr->grab(sl::zed::SENSING_MODE::RAW, 1, 1);
+        if (!zed_ptr->grab(sl::zed::SENSING_MODE::RAW, 1, 1)) {
 
-        slMat2cvMat(zed_ptr->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthDisplay);
+            slMat2cvMat(zed_ptr->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthDisplay);
 
-        if (printHelp) // write help text on the image if needed
-            cv::putText(depthDisplay, helpString, cv::Point(20, 20), CV_FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(111, 111, 111, 255), 2);
+            if (printHelp) // write help text on the image if needed
+                cv::putText(depthDisplay, helpString, cv::Point(20, 20), CV_FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(111, 111, 111, 255), 2);
 
-        cv::imshow("Depth", depthDisplay);
-        key = cv::waitKey(5);
+            cv::imshow("Depth", depthDisplay);
+            key = cv::waitKey(5);
 
-        switch (key) {
-            case 'p':
-            case 'P':
-                param->saveName = path + prefixPC + to_string(count);
-                param->askSavePC = true;
-                break;
+            switch (key) {
+                case 'p':
+                case 'P':
+                    param->saveName = path + prefixPC + to_string(count);
+                    param->askSavePC = true;
+                    break;
 
-            case 'd':
-            case 'D':
-                param->saveName = path + prefixDepth + to_string(count);
-                param->askSaveDepth = true;
-                break;
+                case 'd':
+                case 'D':
+                    param->saveName = path + prefixDepth + to_string(count);
+                    param->askSaveDepth = true;
+                    break;
 
-            case 'm':
-            case 'M':
-            {
-                mode_PC++;
-                param->PC_Format = static_cast<sl::POINT_CLOUD_FORMAT> (mode_PC % 4);
-                std::cout << "Format Point Coud " << getFormatNamePC(param->PC_Format) << std::endl;
+                case 'm':
+                case 'M':
+                {
+                    mode_PC++;
+                    param->PC_Format = static_cast<sl::POINT_CLOUD_FORMAT> (mode_PC % 4);
+                    std::cout << "Format Point Coud " << getFormatNamePC(param->PC_Format) << std::endl;
+                }
+                    break;
+
+                case 'n':
+                case 'N':
+                {
+                    mode_Depth++;
+                    param->Depth_Format = static_cast<sl::DEPTH_FORMAT> (mode_Depth % 3);
+                    std::cout << "Format Depth " << getFormatNameD(param->Depth_Format) << std::endl;
+                }
+                    break;
+
+                case 'h': // print help
+                case 'H':
+                    printHelp = !printHelp;
+                    cout << helpString << endl;
+                    break;
+
+                case 'q': // QUIT
+                case 'Q':
+                case 27:
+                    quit_ = true;
+                    break;
             }
-                break;
-
-            case 'n':
-            case 'N':
-            {
-                mode_Depth++;
-                param->Depth_Format = static_cast<sl::DEPTH_FORMAT> (mode_Depth % 3);
-                std::cout << "Format Depth " << getFormatNameD(param->Depth_Format) << std::endl;
-            }
-                break;
-
-            case 'h': // print help
-            case 'H':
-                printHelp = !printHelp;
-                cout << helpString << endl;
-                break;
-
-            case 'q': // QUIT
-            case 'Q':
-            case 27:
-                quit_ = true;
-                break;
-        }
-        count++;
+            count++;
+        } else std::this_thread::sleep_for(std::chrono::microseconds(500));
     }
 
     param->stop_signal = true;
