@@ -229,7 +229,12 @@ int main(int argc, char **argv) {
         device = vm["device"].as<int>();
     }
 
-    sl::zed::ERRCODE err = zed->init(depth_mode, device, true);
+    sl::zed::InitParams params;
+    params.mode = depth_mode;
+    params.device = device;
+    params.verbose = true;
+
+    sl::zed::ERRCODE err = zed->init(params);
 
     zed_ptr = zed;
 
@@ -290,7 +295,7 @@ int main(int argc, char **argv) {
 
     while (!quit_ && (zed_ptr->getSVOPosition() <= nbFrames)) {
 
-        if (!zed_ptr->grab(sl::zed::SENSING_MODE::RAW, 1, 1)) {
+        if (!zed_ptr->grab(sl::zed::SENSING_MODE::STANDARD, 1, 1)) {
 
             slMat2cvMat(zed_ptr->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthDisplay);
 
