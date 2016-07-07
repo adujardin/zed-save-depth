@@ -4,9 +4,9 @@
 
 This sample allows you to save depth information provided by the ZED Camera or by an SVO file, in different formats (PNG 16-Bit, PFM, PGM, XYZ, PCD, PLY, VTK).
 
-This sample requires OpenCV and Boost (program_options).
+This sample requires OpenCV.
 
-##Build the program
+## Build the program
 
 Open a terminal and execute the following command:
 
@@ -15,20 +15,24 @@ Open a terminal and execute the following command:
     $ cmake ..
     $ make
 
-##Run the program
+## Run the program
 
 Open a terminal in build directory and execute the following command:
 
-    $ ./ZED\ Save\ depth [option] [arg]
-    
+    $ ./ZED\ Save\ depth [option]=[arg]
 
-##Options
- 
-               Option                    |            Descriptions                |         Argument     
------------------------------------------|----------------------------------------|---------------------------------------
- --help                                  | Display help message                   |
- -f, --filename                          | SVO filename                           | path to an SVO file
- -p, --path                              | Output path                            | string
- -r, --resolution                        | ZED Camera resolution (default 2)      | "0": HD2K, "1" : HD1080, "2" : HD720, "3" : VGA
- -q, --quality                           | Disparity Map quality (default 2)      | "1": PERFORMANCE, "2": QUALITY
- -d, --device                            | CUDA device                            | int
+Example :
+
+    $ ./ZED\ Save\ depth --resolution=3 --mode=2
+
+
+## Options
+
+               Option                    |               Descriptions             |                 Available Arguments                 |         Default Argument
+-----------------------------------------|----------------------------------------|-----------------------------------------------------|------------------------------
+ --help, -h , -?, --usage                | Display help message                   |                                                     |
+ --filename                              | SVO filename                           | path to an SVO file                                 | <none>
+ --path                                  | Output path                            | Output path                                         | ./
+ --resolution                            | ZED Camera resolution (default 2)      | "0": HD2K, "1" : HD1080, "2" : HD720, "3" : VGA     | 2
+ --quality                               | Disparity Map quality (default 2)      | "1": PERFORMANCE, "2": MEDIUM, "3": QUALITY         | 1
+ --device                                | CUDA device                            | CUDA device                                         | -1
