@@ -36,3 +36,13 @@ Example :
  --resolution                            | ZED Camera resolution (default 2)      | "0": HD2K, "1" : HD1080, "2" : HD720, "3" : VGA     | 2
  --quality                               | Disparity Map quality (default 2)      | "1": PERFORMANCE, "2": MEDIUM, "3": QUALITY         | 1
  --device                                | CUDA device                            | CUDA device                                         | -1
+
+## Keyboard shortcuts
+
+Hotkeys    |           Description                          
+-------------|-----------------------------------
+'p'         | Save the point cloud                                                          
+'d'         | Save the depth image                                                                     
+'m'         | Change point cloud file format        
+'n'         | Change depth map file format        
+'q'         | Exit the sample       
