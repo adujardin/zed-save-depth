@@ -1,8 +1,6 @@
-
-
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2015, STEREOLABS.
+// Copyright (c) 2016, STEREOLABS.
 //
 // All rights reserved.
 //
@@ -23,38 +21,29 @@
 
 
 /**************************************************************************************************
- ** This sample demonstrates how to save depth information provided by the ZED Camera,              **
- ** or by an SVO file, in different image formats (PNG 16-Bits, PFM).                               **
- **                                                                                                 **
- ***************************************************************************************************/
+ ** This sample demonstrates how to save depth information provided by the ZED Camera,           **
+ ** or by an SVO file, in different image formats (PNG 16-Bits, PFM).                            **
+ **                                                                                              **
+ **************************************************************************************************/
 
 #define NOMINMAX
-//standard includes
+
 #include <iomanip>
 #include <signal.h>
 #include <iostream>
 #include <limits>
 #include <thread>
 
-
-
-
-
-//opencv includes
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-//ZED Includes
 #include <zed/Camera.hpp>
 
-
-#ifndef _SL_JETSON_   //define in zed/utils/GlobalDefines.hpp --> it detects if we are running under a Jetson TK1 or TX1
+#ifndef _SL_JETSON_   // defined in zed/utils/GlobalDefines.hpp --> Detect if we are running under a Jetson TK1 or TX1
 #include <opencv2/core/utility.hpp>
 #endif
-
-
 
 using namespace std;
 
@@ -109,7 +98,8 @@ std::string getFormatNameD(sl::DEPTH_FORMAT f) {
     return str_;
 }
 
-//UTILS fct to handle CTRL-C event
+// Fonctions to handle CTRL-C event (exit event)
+
 #ifdef _WIN32
 
 BOOL CtrlHandler(DWORD fdwCtrlType) {
@@ -131,6 +121,8 @@ void nix_exit_handler(int s) {
     exit(1);
 }
 #endif
+
+// Save function called in a thread
 
 void saveProcess() {
     while (!param->stop_signal) {
@@ -157,7 +149,24 @@ void saveProcess() {
     }
 }
 
-//Main function
+
+// Save function using opencv
+
+void saveSbSimage(sl::zed::Camera* zed, std::string filename) {
+    sl::zed::resolution imSize = zed->getImageSize();
+
+    cv::Mat SbS(imSize.height, imSize.width * 2, CV_8UC4);
+    cv::Mat leftIm(SbS, cv::Rect(0, 0, imSize.width, imSize.height));
+    cv::Mat rightIm(SbS, cv::Rect(imSize.width, 0, imSize.width, imSize.height));
+
+    slMat2cvMat(zed->retrieveImage(sl::zed::SIDE::LEFT)).copyTo(leftIm);
+    slMat2cvMat(zed->retrieveImage(sl::zed::SIDE::RIGHT)).copyTo(rightIm);
+
+    cv::imshow("Saved Image", SbS);
+    cv::cvtColor(SbS, SbS, CV_RGBA2RGB);
+
+    cv::imwrite(filename, SbS);
+}
 
 int main(int argc, char **argv) {
 
@@ -253,14 +262,10 @@ int main(int argc, char **argv) {
             break;
     }
     depth_mode = static_cast<sl::zed::MODE> (mode);
-
     string path = parser.get<std::string>("path");
-
     int device = parser.get<int>("device");
 
-
 #ifndef _SL_JETSON_
-
     //this check is available on 3.1 but not on OpenCV4Tegra
     if (!parser.check()) {
         parser.printErrors();
@@ -268,7 +273,7 @@ int main(int argc, char **argv) {
     }
 #else
     // No check can be performed easily with OpenCV2.4
-    // Check that parameters are set correcly or it will result to a SegFault
+    // Check that parameters are set correctly or it will result to a SegFault
 #endif
 
     string prefixPC = "PC_"; //Default output file prefix
@@ -328,6 +333,8 @@ int main(int argc, char **argv) {
 
     bool quit_ = false;
 
+    std::cout << " Press 's' to save Side by side images" << std::endl;
+
     std::cout << " Press 'p' to save Point Cloud" << std::endl;
     std::cout << " Press 'd' to save Depth image" << std::endl;
 
@@ -341,7 +348,7 @@ int main(int argc, char **argv) {
         zed_ptr->grab(sl::zed::SENSING_MODE::STANDARD, 1, 1);
         slMat2cvMat(zed_ptr->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthDisplay);
 
-        if (printHelp) // write help text on the image if needed
+        if (printHelp) // Write help text on the image if needed
             cv::putText(depthDisplay, helpString, cv::Point(20, 20), CV_FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(111, 111, 111, 255), 2);
 
         cv::imshow("Depth", depthDisplay);
@@ -360,7 +367,7 @@ int main(int argc, char **argv) {
                 param->askSaveDepth = true;
                 break;
 
-            case 'm':
+            case 'm': // point cloud format
             case 'M':
             {
                 mode_PC++;
@@ -369,7 +376,7 @@ int main(int argc, char **argv) {
             }
                 break;
 
-            case 'n':
+            case 'n': // depth format
             case 'N':
             {
                 mode_Depth++;
@@ -384,7 +391,10 @@ int main(int argc, char **argv) {
                 cout << helpString << endl;
                 break;
 
-            case 'q': // QUIT
+            case 's': // save side by side images
+                saveSbSimage(zed, std::string("ZEDImage") + std::to_string(count) + std::string(".png"));
+                break;
+            case 'q': // quit
             case 'Q':
             case 27:
                 quit_ = true;
