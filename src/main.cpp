@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2016, STEREOLABS.
+// Copyright (c) 2017, STEREOLABS.
 //
 // All rights reserved.
 //
@@ -39,7 +39,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#include <zed/Camera.hpp>
+#include <sl/Camera.hpp>
 
 #ifndef _SL_JETSON_   // defined in zed/utils/GlobalDefines.hpp --> Detect if we are running under a Jetson TK1 or TX1
 #include <opencv2/core/utility.hpp>
@@ -50,28 +50,28 @@ using namespace std;
 typedef struct SaveParamStruct {
     sl::POINT_CLOUD_FORMAT PC_Format;
     sl::DEPTH_FORMAT Depth_Format;
-    std::string saveName;
+    sl::String saveName;
     bool askSavePC;
     bool askSaveDepth;
     bool stop_signal;
 } SaveParam;
 
-sl::zed::Camera * zed_ptr;
+sl::Camera *zed_ptr;
 SaveParam *param;
 
 std::string getFormatNamePC(sl::POINT_CLOUD_FORMAT f) {
     std::string str_;
     switch (f) {
-        case sl::XYZ:
+        case sl::POINT_CLOUD_FORMAT_XYZ_ASCII:
             str_ = "XYZ";
             break;
-        case sl::PCD:
+        case sl::POINT_CLOUD_FORMAT_PCD_ASCII:
             str_ = "PCD";
             break;
-        case sl::PLY:
+        case sl::POINT_CLOUD_FORMAT_PLY_ASCII:
             str_ = "PLY";
             break;
-        case sl::VTK:
+        case sl::POINT_CLOUD_FORMAT_VTK_ASCII:
             str_ = "VTK";
             break;
         default:
@@ -83,13 +83,13 @@ std::string getFormatNamePC(sl::POINT_CLOUD_FORMAT f) {
 std::string getFormatNameD(sl::DEPTH_FORMAT f) {
     std::string str_;
     switch (f) {
-        case sl::PNG:
+        case sl::DEPTH_FORMAT_PNG:
             str_ = "PNG";
             break;
-        case sl::PFM:
+        case sl::DEPTH_FORMAT_PFM:
             str_ = "PFM";
             break;
-        case sl::PGM:
+        case sl::DEPTH_FORMAT_PGM:
             str_ = "PGM";
             break;
         default:
@@ -128,51 +128,45 @@ void saveProcess() {
     while (!param->stop_signal) {
 
         if (param->askSaveDepth) {
-
             float max_value = std::numeric_limits<unsigned short int>::max();
-            float scale_factor = max_value / zed_ptr->getDepthClampValue();
+            float scale_factor = max_value / zed_ptr->getDepthMaxRangeValue();
 
             std::cout << "Saving Depth Map " << param->saveName << " in " << getFormatNameD(param->Depth_Format) << " ..." << flush;
-            sl::writeDepthAs(zed_ptr, param->Depth_Format, param->saveName, scale_factor);
+            sl::saveDepthAs(*zed_ptr, param->Depth_Format, param->saveName, scale_factor);
             std::cout << "done" << endl;
             param->askSaveDepth = false;
         }
 
         if (param->askSavePC) {
             std::cout << "Saving Point Cloud " << param->saveName << " in " << getFormatNamePC(param->PC_Format) << " ..." << flush;
-            sl::writePointCloudAs(zed_ptr, param->PC_Format, param->saveName, true, false);
+            sl::savePointCloudAs(*zed_ptr, param->PC_Format, param->saveName, true, false);
             std::cout << "done" << endl;
             param->askSavePC = false;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        sl::sleep_ms(1);
     }
 }
 
 
 // Save function using opencv
 
-void saveSbSimage(sl::zed::Camera* zed, std::string filename) {
-    sl::zed::resolution imSize = zed->getImageSize();
-
-    cv::Mat SbS(imSize.height, imSize.width * 2, CV_8UC4);
-    cv::Mat leftIm(SbS, cv::Rect(0, 0, imSize.width, imSize.height));
-    cv::Mat rightIm(SbS, cv::Rect(imSize.width, 0, imSize.width, imSize.height));
-
-    slMat2cvMat(zed->retrieveImage(sl::zed::SIDE::LEFT)).copyTo(leftIm);
-    slMat2cvMat(zed->retrieveImage(sl::zed::SIDE::RIGHT)).copyTo(rightIm);
-
-    cv::imshow("Saved Image", SbS);
-    cv::cvtColor(SbS, SbS, CV_RGBA2RGB);
-
-    cv::imwrite(filename, SbS);
+void saveSbSimage(std::string filename) {
+    sl::Mat sbs_sl;
+    zed_ptr->retrieveImage(sbs_sl, sl::VIEW_SIDE_BY_SIDE);
+    sbs_sl.write(filename.c_str());
+    std::cout << "Image saved !" << std::endl;
 }
 
 int main(int argc, char **argv) {
 
-    sl::zed::Camera* zed;
+    sl::Camera zed;
+    zed_ptr = &zed;
+
+    sl::InitParameters parameters;
+
     int nbFrames = 0;
-    sl::zed::MODE depth_mode = sl::zed::MODE::PERFORMANCE;
+    sl::DEPTH_MODE depth_mode = sl::DEPTH_MODE_PERFORMANCE;
 
 
     //*
@@ -203,7 +197,7 @@ int main(int argc, char **argv) {
             "{device d|-1|CUDA device (ex : -d=0 or --device=0) }";
 
     cv::CommandLineParser parser(argc, argv, keys);
-    parser.about("Sample from ZED SDK" + sl::zed::Camera::getSDKVersion()); //about is not available under OpenCV2.4
+    parser.about("Sample from ZED SDK" + std::string(sl::Camera::getSDKVersion())); //about is not available under OpenCV2.4
 #endif
 
     // return 0;
@@ -235,11 +229,11 @@ int main(int argc, char **argv) {
             default: cout << "Invalid Resolution " << resolution << endl;
                 break;
         }
-        zed = new sl::zed::Camera(static_cast<sl::zed::ZEDResolution_mode> (resolution));
+        parameters.camera_resolution = static_cast<sl::RESOLUTION> (resolution);
     } else {
         cout << "Saving depth from SVO : " << filename << endl;
-        zed = new sl::zed::Camera(std::string(filename));
-        nbFrames = zed->getSVONumberOfFrames();
+        parameters.svo_input_filename = filename.c_str();
+        nbFrames = zed.getSVONumberOfFrames();
         std::cout << "SVO number of frames : " << nbFrames << std::endl;
     }
 
@@ -247,21 +241,21 @@ int main(int argc, char **argv) {
     switch (mode) {
         case 1:
             cout << "Mode set to PERFORMANCE" << endl;
-            depth_mode = sl::zed::MODE::PERFORMANCE;
+            depth_mode = sl::DEPTH_MODE_PERFORMANCE;
             break;
         case 2:
             cout << "Mode set to MEDIUM" << endl;
-            depth_mode = sl::zed::MODE::MEDIUM;
+            depth_mode = sl::DEPTH_MODE_MEDIUM;
             break;
         case 3:
             cout << "Mode set to QUALITY" << endl;
-            depth_mode = sl::zed::MODE::QUALITY;
+            depth_mode = sl::DEPTH_MODE_QUALITY;
             break;
         default:
             cout << "Invalid depth quality " << mode << endl;
             break;
     }
-    depth_mode = static_cast<sl::zed::MODE> (mode);
+    depth_mode = static_cast<sl::DEPTH_MODE> (mode);
     string path = parser.get<std::string>("path");
     int device = parser.get<int>("device");
 
@@ -279,20 +273,16 @@ int main(int argc, char **argv) {
     string prefixPC = "PC_"; //Default output file prefix
     string prefixDepth = "Depth_"; //Default output file prefix
 
-    sl::zed::InitParams parameters;
-    parameters.mode = depth_mode;
-    parameters.unit = sl::zed::UNIT::MILLIMETER;
-    parameters.verbose = 1;
-    parameters.device = device;
+    parameters.depth_mode = depth_mode;
+    parameters.coordinate_units = sl::UNIT_MILLIMETER;
+    parameters.sdk_verbose = 1;
+    parameters.sdk_gpu_id = device;
 
-    sl::zed::ERRCODE err = zed->init(parameters);
-    zed_ptr = zed;
-    //ERRCODE display
-    cout << errcode2str(err) << endl;
+    sl::ERROR_CODE err = zed.open(parameters);
+    cout << errorCode2str(err) << endl;
 
     //Quit if an error occurred
-    if (err != sl::zed::ERRCODE::SUCCESS) {
-        delete zed;
+    if (err != sl::SUCCESS) {
         return 1;
     }
 
@@ -308,16 +298,14 @@ int main(int argc, char **argv) {
 #endif
 
     char key = ' '; // key pressed
-    int width = zed_ptr->getImageSize().width;
-    int height = zed_ptr->getImageSize().height;
-    cv::Size size(width, height); // image size
-    cv::Mat depthDisplay(size, CV_8UC1); // normalized depth to display
+    sl::Mat depthDisplay;
+    cv::Mat depth_cv;
 
     bool printHelp = false;
     std::string helpString = "[d] save Depth, [P] Save Point Cloud, [m] change format PC, [n] change format Depth, [q] quit";
 
     int depth_clamp = 5000;
-    zed_ptr->setDepthClampValue(depth_clamp);
+    zed.setDepthMaxRangeValue(depth_clamp);
 
     int mode_PC = 0;
     int mode_Depth = 0;
@@ -343,27 +331,29 @@ int main(int argc, char **argv) {
 
     std::cout << " Press 'q' to exit" << std::endl;
     int count = 0;
-    while (!quit_ && (zed_ptr->getSVOPosition() <= nbFrames)) {
+    while (!quit_ && (zed.getSVOPosition() <= nbFrames)) {
 
-        zed_ptr->grab(sl::zed::SENSING_MODE::STANDARD, 1, 1);
-        slMat2cvMat(zed_ptr->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthDisplay);
+        zed.grab(sl::SENSING_MODE_STANDARD);
+        zed.retrieveImage(depthDisplay, sl::VIEW_DEPTH);
+
+        depth_cv = cv::Mat(depthDisplay.getHeight(), depthDisplay.getWidth(), CV_8UC4, depthDisplay.getPtr<sl::uchar1>(sl::MEM_CPU));
 
         if (printHelp) // Write help text on the image if needed
-            cv::putText(depthDisplay, helpString, cv::Point(20, 20), CV_FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(111, 111, 111, 255), 2);
+            cv::putText(depth_cv, helpString, cv::Point(20, 20), CV_FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(111, 111, 111, 255), 2);
 
-        cv::imshow("Depth", depthDisplay);
+        cv::imshow("Depth", depth_cv);
         key = cv::waitKey(5);
 
         switch (key) {
             case 'p':
             case 'P':
-                param->saveName = path + prefixPC + to_string(count);
+                param->saveName = std::string(path + prefixPC + to_string(count)).c_str();
                 param->askSavePC = true;
                 break;
 
             case 'd':
             case 'D':
-                param->saveName = path + prefixDepth + to_string(count);
+                param->saveName =  std::string(path + prefixDepth + to_string(count)).c_str();
                 param->askSaveDepth = true;
                 break;
 
@@ -392,7 +382,7 @@ int main(int argc, char **argv) {
                 break;
 
             case 's': // save side by side images
-                saveSbSimage(zed, std::string("ZEDImage") + std::to_string(count) + std::string(".png"));
+                saveSbSimage(std::string("ZEDImage") + std::to_string(count) + std::string(".png"));
                 break;
             case 'q': // quit
             case 'Q':
@@ -406,8 +396,7 @@ int main(int argc, char **argv) {
     param->stop_signal = true;
     grab_thread.join();
 
-    delete zed_ptr;
-
+    zed.close();
     return 0;
 }
 

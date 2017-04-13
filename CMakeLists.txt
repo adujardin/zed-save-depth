@@ -19,17 +19,15 @@ IF(WIN32) # Windows
     SET(ZED_LIBRARIES $ENV{ZED_LIBRARIES_64})
     SET(ZED_LIBRARY_DIR $ENV{ZED_LIBRARY_DIR})
     SET(OPENCV_DIR $ENV{OPENCV_DIR})
-    SET(EIGEN3_INCLUDE_DIR $ENV{EIGEN_DIR})
- ELSE() # Linux
-    find_package(ZED REQUIRED)
-    find_package(Eigen3 REQUIRED)
+ELSE() # Linux
+    find_package(ZED 2.0 REQUIRED)
 
-##For Jetson, OpenCV4Tegra is based on OpenCV2.4
+    ##For Jetson, OpenCV4Tegra is based on OpenCV2.4
      exec_program(uname ARGS -p OUTPUT_VARIABLE CMAKE_SYSTEM_NAME2)
      if ( CMAKE_SYSTEM_NAME2 MATCHES "aarch64" OR CMAKE_SYSTEM_NAME2 MATCHES "armv7l" )
-	SET(VERSION_REQ_OCV "2.4")
-	SET(VERSION_REQ_CUDA "")
-	SET(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
+        SET(VERSION_REQ_OCV "2.4")
+        SET(VERSION_REQ_CUDA "")
+        SET(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
      endif()
      SET(SPECIAL_OS_LIBS "pthread")
 ENDIF(WIN32)
@@ -40,9 +38,7 @@ find_package(CUDA ${VERSION_REQ_CUDA} REQUIRED)
 include_directories(${CUDA_INCLUDE_DIRS})
 include_directories(${ZED_INCLUDE_DIRS})
 include_directories(${OpenCV_INCLUDE_DIRS})
-include_directories(${EIGEN3_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-
 
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
