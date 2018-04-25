@@ -20,11 +20,10 @@
 
 
 
-/**************************************************************************************************
- ** This sample demonstrates how to save depth information provided by the ZED Camera,           **
- ** or by an SVO file, in different image formats (PNG 16-Bits, PFM).                            **
- **                                                                                              **
- **************************************************************************************************/
+/********************************************************************************
+ ** This sample demonstrates how to save depth information provided by the ZED Camera,                    **
+ ** or by an SVO file, in different image formats (PNG 16-Bits, PFM).                                                  **
+ ********************************************************************************/
 
 #define NOMINMAX
 
@@ -35,15 +34,7 @@
 #include <thread>
 
 #include <opencv2/opencv.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-
 #include <sl/Camera.hpp>
-
-#ifndef _SL_JETSON_   // defined in zed/utils/GlobalDefines.hpp --> Detect if we are running under a Jetson TK1 or TX1
-#include <opencv2/core/utility.hpp>
-#endif
 
 using namespace std;
 
@@ -56,8 +47,8 @@ typedef struct SaveParamStruct {
     bool stop_signal;
 } SaveParam;
 
-sl::Camera *zed_ptr;
-SaveParam *param;
+sl::Camera zed;
+SaveParam param;
 
 std::string getFormatNamePC(sl::POINT_CLOUD_FORMAT f) {
     std::string str_;
@@ -107,7 +98,7 @@ BOOL CtrlHandler(DWORD fdwCtrlType) {
             //Handle the CTRL-C signal.
         case CTRL_C_EVENT:
             printf("\nQuitting...\n");
-            delete zed_ptr;
+            zed.close();
             exit(0);
         default:
             return FALSE;
@@ -117,7 +108,7 @@ BOOL CtrlHandler(DWORD fdwCtrlType) {
 
 void nix_exit_handler(int s) {
     printf("\nQuitting...\n");
-    delete zed_ptr;
+    zed.close();
     exit(1);
 }
 #endif
@@ -125,23 +116,23 @@ void nix_exit_handler(int s) {
 // Save function called in a thread
 
 void saveProcess() {
-    while (!param->stop_signal) {
+    while (!param.stop_signal) {
 
-        if (param->askSaveDepth) {
+        if (param.askSaveDepth) {
             float max_value = std::numeric_limits<unsigned short int>::max();
-            float scale_factor = max_value / zed_ptr->getDepthMaxRangeValue();
+            float scale_factor = max_value / zed.getDepthMaxRangeValue();
 
-            std::cout << "Saving Depth Map " << param->saveName << " in " << getFormatNameD(param->Depth_Format) << " ..." << flush;
-            sl::saveDepthAs(*zed_ptr, param->Depth_Format, param->saveName, scale_factor);
+            std::cout << "Saving Depth Map " << param.saveName << " in " << getFormatNameD(param.Depth_Format) << " ..." << flush;
+            sl::saveDepthAs(zed, param.Depth_Format, param.saveName, scale_factor);
             std::cout << "done" << endl;
-            param->askSaveDepth = false;
+            param.askSaveDepth = false;
         }
 
-        if (param->askSavePC) {
-            std::cout << "Saving Point Cloud " << param->saveName << " in " << getFormatNamePC(param->PC_Format) << " ..." << flush;
-            sl::savePointCloudAs(*zed_ptr, param->PC_Format, param->saveName, true, false);
+        if (param.askSavePC) {
+            std::cout << "Saving Point Cloud " << param.saveName << " in " << getFormatNamePC(param.PC_Format) << " ..." << flush;
+            sl::savePointCloudAs(zed, param.PC_Format, param.saveName, true);
             std::cout << "done" << endl;
-            param->askSavePC = false;
+            param.askSavePC = false;
         }
 
         sl::sleep_ms(1);
@@ -153,41 +144,17 @@ void saveProcess() {
 
 void saveSbSimage(std::string filename) {
     sl::Mat sbs_sl;
-    zed_ptr->retrieveImage(sbs_sl, sl::VIEW_SIDE_BY_SIDE);
+    zed.retrieveImage(sbs_sl, sl::VIEW_SIDE_BY_SIDE);
     sbs_sl.write(filename.c_str());
     std::cout << "Image saved !" << std::endl;
 }
 
 int main(int argc, char **argv) {
-
-    sl::Camera zed;
-    zed_ptr = &zed;
-
     sl::InitParameters parameters;
 
     int nbFrames = 0;
     sl::DEPTH_MODE depth_mode = sl::DEPTH_MODE_PERFORMANCE;
-
-
-    //*
-    //*  OpenCV4Tegra (2.4) and OpenCV 3.1 handles parameters in a different ways.
-    //*  In the following lines, we show how to handle both ways by checking if we are on the Jetson (_SL_JETSON_) or not to take "OpenCV2.4" or "OpenCV3.1" style
-    //*
-
-
-#ifdef _SL_JETSON_
-    const cv::String keys = {
-        "{ h | help      |                    | print help message }"
-        "{ f | filename  |                    | path to SVO filename}"
-        "{ r | resolution|   2                |ZED Camera resolution, ENUM 0: HD2K   1: HD1080   2: HD720   3: VGA}"
-        "{ m | mode      |   2                |Disparity Map mode, ENUM 1: PERFORMANCE  2: MEDIUM   3: QUALITY}"
-        "{ p | path      |   ./               |Output path (can include output filename prefix)}"
-        "{ d | device    |   -1               |CUDA device ID }"
-    };
-
-    cv::CommandLineParser parser(argc, argv, keys.c_str());
-#else
-
+    
     const cv::String keys =
             "{help h usage ? || print this message}"
             "{filename f||SVO filename (ex : -f=test.svo  or --filename=test.svo) }"
@@ -198,20 +165,11 @@ int main(int argc, char **argv) {
 
     cv::CommandLineParser parser(argc, argv, keys);
     parser.about("Sample from ZED SDK" + std::string(sl::Camera::getSDKVersion())); //about is not available under OpenCV2.4
-#endif
 
-    // return 0;
-#ifdef _SL_JETSON_
-    if (parser.get<bool>("help")) {
-        parser.printParams();
-        return 0;
-    }
-#else
     if (parser.has("help")) {
         parser.printMessage();
         return 0;
     }
-#endif
 
     cv::String filename = parser.get<cv::String>("filename");
     if (filename.empty()) {
@@ -251,6 +209,10 @@ int main(int argc, char **argv) {
             cout << "Mode set to QUALITY" << endl;
             depth_mode = sl::DEPTH_MODE_QUALITY;
             break;
+        case 4:
+            cout << "Mode set to ULTRA" << endl;
+            depth_mode = sl::DEPTH_MODE_ULTRA;
+            break;
         default:
             cout << "Invalid depth quality " << mode << endl;
             break;
@@ -259,16 +221,10 @@ int main(int argc, char **argv) {
     string path = parser.get<std::string>("path");
     int device = parser.get<int>("device");
 
-#ifndef _SL_JETSON_
-    //this check is available on 3.1 but not on OpenCV4Tegra
     if (!parser.check()) {
         parser.printErrors();
         return 0;
     }
-#else
-    // No check can be performed easily with OpenCV2.4
-    // Check that parameters are set correctly or it will result to a SegFault
-#endif
 
     string prefixPC = "PC_"; //Default output file prefix
     string prefixDepth = "Depth_"; //Default output file prefix
@@ -279,7 +235,7 @@ int main(int argc, char **argv) {
     parameters.sdk_gpu_id = device;
 
     sl::ERROR_CODE err = zed.open(parameters);
-    cout << errorCode2str(err) << endl;
+    cout << toString(err) << endl;
 
     //Quit if an error occurred
     if (err != sl::SUCCESS) {
@@ -310,12 +266,11 @@ int main(int argc, char **argv) {
     int mode_PC = 0;
     int mode_Depth = 0;
 
-    param = new SaveParam();
-    param->askSavePC = false;
-    param->askSaveDepth = false;
-    param->stop_signal = false;
-    param->PC_Format = static_cast<sl::POINT_CLOUD_FORMAT> (mode_PC);
-    param->Depth_Format = static_cast<sl::DEPTH_FORMAT> (mode_Depth);
+    param.askSavePC = false;
+    param.askSaveDepth = false;
+    param.stop_signal = false;
+    param.PC_Format = static_cast<sl::POINT_CLOUD_FORMAT> (mode_PC);
+    param.Depth_Format = static_cast<sl::DEPTH_FORMAT> (mode_Depth);
 
     std::thread grab_thread(saveProcess);
 
@@ -347,22 +302,22 @@ int main(int argc, char **argv) {
         switch (key) {
             case 'p':
             case 'P':
-                param->saveName = std::string(path + prefixPC + to_string(count)).c_str();
-                param->askSavePC = true;
+                param.saveName = std::string(path + prefixPC + to_string(count)).c_str();
+                param.askSavePC = true;
                 break;
 
             case 'd':
             case 'D':
-                param->saveName =  std::string(path + prefixDepth + to_string(count)).c_str();
-                param->askSaveDepth = true;
+                param.saveName = std::string(path + prefixDepth + to_string(count)).c_str();
+                param.askSaveDepth = true;
                 break;
 
             case 'm': // point cloud format
             case 'M':
             {
                 mode_PC++;
-                param->PC_Format = static_cast<sl::POINT_CLOUD_FORMAT> (mode_PC % 4);
-                std::cout << "Format Point Cloud " << getFormatNamePC(param->PC_Format) << std::endl;
+                param.PC_Format = static_cast<sl::POINT_CLOUD_FORMAT> (mode_PC % 4);
+                std::cout << "Format Point Cloud " << getFormatNamePC(param.PC_Format) << std::endl;
             }
                 break;
 
@@ -370,8 +325,8 @@ int main(int argc, char **argv) {
             case 'N':
             {
                 mode_Depth++;
-                param->Depth_Format = static_cast<sl::DEPTH_FORMAT> (mode_Depth % 3);
-                std::cout << "Format Depth " << getFormatNameD(param->Depth_Format) << std::endl;
+                param.Depth_Format = static_cast<sl::DEPTH_FORMAT> (mode_Depth % 3);
+                std::cout << "Format Depth " << getFormatNameD(param.Depth_Format) << std::endl;
             }
                 break;
 
@@ -393,7 +348,7 @@ int main(int argc, char **argv) {
         count++;
     }
 
-    param->stop_signal = true;
+    param.stop_signal = true;
     grab_thread.join();
 
     zed.close();

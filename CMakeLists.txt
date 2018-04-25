@@ -9,10 +9,7 @@ endif(COMMAND cmake_policy)
 
 SET(EXECUTABLE_OUTPUT_PATH ".")
 
-SET(VERSION_REQ_OCV "3.1")
 SET(SPECIAL_OS_LIBS "")
-SET(VERSION_REQ_CUDA "8.0")
-
 
 IF(WIN32) # Windows
     SET(ZED_INCLUDE_DIRS $ENV{ZED_INCLUDE_DIRS})
@@ -21,19 +18,11 @@ IF(WIN32) # Windows
     SET(OPENCV_DIR $ENV{OPENCV_DIR})
 ELSE() # Linux
     find_package(ZED 2.0 REQUIRED)
-
-    ##For Jetson, OpenCV4Tegra is based on OpenCV2.4
-     exec_program(uname ARGS -p OUTPUT_VARIABLE CMAKE_SYSTEM_NAME2)
-     if ( CMAKE_SYSTEM_NAME2 MATCHES "aarch64" OR CMAKE_SYSTEM_NAME2 MATCHES "armv7l" )
-        SET(VERSION_REQ_OCV "2.4")
-        SET(VERSION_REQ_CUDA "")
-        SET(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
-     endif()
-     SET(SPECIAL_OS_LIBS "pthread")
+    SET(SPECIAL_OS_LIBS "pthread")
 ENDIF(WIN32)
  
-find_package(OpenCV ${VERSION_REQ_OCV} REQUIRED)
-find_package(CUDA ${VERSION_REQ_CUDA} REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(CUDA REQUIRED)
  
 include_directories(${CUDA_INCLUDE_DIRS})
 include_directories(${ZED_INCLUDE_DIRS})
@@ -57,5 +46,5 @@ TARGET_LINK_LIBRARIES(${execName}
 			${SPECIAL_OS_LIBS}
                         ${ZED_LIBRARIES}
                         ${OpenCV_LIBS}
-                        ${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY} ${CUDA_nppi_LIBRARY}
+                        ${CUDA_CUDA_LIBRARY} ${CUDA_CUDART_LIBRARY} ${CUDA_NPP_LIBRARIES_ZED}
                     )
