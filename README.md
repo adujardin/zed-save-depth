@@ -51,7 +51,7 @@ Option                    |               Descriptions             |            
  --filename                              | SVO input filename (optional).                          | Path to an input SVO file                                 | <none>
  --path                                  | Specify the location to save image, depth and point cloud.                            | Output path                                         | ./
  --resolution                            | Specify ZED video resolution.   | "0": HD2K, "1" : HD1080, "2" : HD720, "3" : VGA     | 2
- --mode                               | Specify depth map quality mode.      | "1": PERFORMANCE, "2": MEDIUM, "3": QUALITY         | 1
+ --mode                               | Specify depth map quality mode.      | "1": PERFORMANCE, "2": MEDIUM, "3": QUALITY, "4": ULTRA         | 1
  --device                                | If multiple GPUs are available, select a GPU device for depth computation.	By default, (-1) will select the GPU with the highest number of CUDA cores.                            |  GPU ID                                        | -1
  --help, -h , -?, --usage                | Display help message.                   |                                                     |
 
