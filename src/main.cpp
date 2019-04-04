@@ -191,8 +191,6 @@ int main(int argc, char **argv) {
     } else {
         cout << "Saving depth from SVO : " << filename << endl;
         parameters.svo_input_filename = filename.c_str();
-        nbFrames = zed.getSVONumberOfFrames();
-        std::cout << "SVO number of frames : " << nbFrames << std::endl;
     }
 
     int mode = parser.get<int>("mode");
@@ -240,6 +238,11 @@ int main(int argc, char **argv) {
     //Quit if an error occurred
     if (err != sl::SUCCESS) {
         return 1;
+    }
+
+    if(!filename.empty()){
+        nbFrames = zed.getSVONumberOfFrames();
+        std::cout << "SVO number of frames : " << nbFrames << std::endl;
     }
 
     //CTRL-C (= kill signal) handler
