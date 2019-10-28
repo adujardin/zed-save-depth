@@ -297,7 +297,7 @@ int main(int argc, char **argv) {
         depth_cv = cv::Mat(depthDisplay.getHeight(), depthDisplay.getWidth(), CV_8UC4, depthDisplay.getPtr<sl::uchar1>(sl::MEM_CPU));
 
         if (printHelp) // Write help text on the image if needed
-            cv::putText(depth_cv, helpString, cv::Point(20, 20), CV_FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(111, 111, 111, 255), 2);
+            cv::putText(depth_cv, helpString, cv::Point(20, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(111, 111, 111, 255), 2);
 
         cv::imshow("Depth", depth_cv);
         key = cv::waitKey(5);
